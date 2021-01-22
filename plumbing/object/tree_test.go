@@ -122,6 +122,12 @@ func (s *TreeSuite) TestFindEntry(c *C) {
 	c.Assert(e.Name, Equals, "foo.go")
 }
 
+func (s *TreeSuite) TestFindEntry_Directory(c *C) {
+	e, err := s.Tree.FindEntry("vendor")
+	c.Assert(err, IsNil)
+	c.Assert(e.Name, Equals, "vendor")
+}
+
 func (s *TreeSuite) TestFindEntryNotFound(c *C) {
 	e, err := s.Tree.FindEntry("not-found")
 	c.Assert(e, IsNil)

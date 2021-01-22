@@ -1,14 +1,13 @@
 package object
 
 import (
-	"io"
-
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/storer"
+	"io"
 )
 
 type commitPathIter struct {
-	pathFilter    func(string) bool
+	path          string
 	sourceIter    CommitIter
 	currentCommit *Commit
 	checkParent   bool
@@ -20,20 +19,18 @@ type commitPathIter struct {
 // If checkParent is true then the function double checks if potential parent (next commit in a path)
 // is one of the parents in the tree (it's used by `git log --all`).
 // pathFilter is a function that takes path of file as argument and returns true if we want it
-func NewCommitPathIterFromIter(pathFilter func(string) bool, commitIter CommitIter, checkParent bool) CommitIter {
+func NewCommitPathIterFromIter(path string, commitIter CommitIter, checkParent bool) CommitIter {
 	iterator := new(commitPathIter)
 	iterator.sourceIter = commitIter
-	iterator.pathFilter = pathFilter
+	iterator.path = path
 	iterator.checkParent = checkParent
 	return iterator
 }
 
 // NewCommitFileIterFromIter is kept for compatibility, can be replaced with NewCommitPathIterFromIter
-func NewCommitFileIterFromIter(fileName string, commitIter CommitIter, checkParent bool) CommitIter {
+func NewCommitFileIterFromIter(path string, commitIter CommitIter, checkParent bool) CommitIter {
 	return NewCommitPathIterFromIter(
-		func(path string) bool {
-			return path == fileName
-		},
+		path,
 		commitIter,
 		checkParent,
 	)
@@ -83,13 +80,24 @@ func (c *commitPathIter) getNextFileCommit() (*Commit, error) {
 			}
 		}
 
-		// Find diff between current and parent trees
-		changes, diffErr := DiffTree(currentTree, parentTree)
-		if diffErr != nil {
-			return nil, diffErr
-		}
+		var found bool
+		currentTree, currentSubTreeErr := currentTree.Tree(c.path)
+		if parentTree != nil {
+			parentTree, parentSubTreeErr := parentTree.Tree(c.path)
+			if currentSubTreeErr == nil && parentSubTreeErr == nil {
+				// Find diff between current and parent trees
+				changes, diffErr := DiffTree(currentTree, parentTree)
+				if diffErr != nil {
+					return nil, diffErr
+				}
 
-		found := c.hasFileChange(changes, parentCommit)
+				found = c.hasFileChange(changes, parentCommit)
+			} else if currentSubTreeErr != nil && currentSubTreeErr.Error() == "directory not found" {
+				found = parentSubTreeErr == nil
+			} else if parentSubTreeErr != nil && parentSubTreeErr.Error() == "directory not found" {
+				found = currentSubTreeErr == nil
+			}
+		}
 
 		// Storing the current-commit in-case a change is found, and
 		// Updating the current-commit for the next-iteration
@@ -108,23 +116,17 @@ func (c *commitPathIter) getNextFileCommit() (*Commit, error) {
 }
 
 func (c *commitPathIter) hasFileChange(changes Changes, parent *Commit) bool {
-	for _, change := range changes {
-		if !c.pathFilter(change.name()) {
-			continue
-		}
-
-		// filename matches, now check if source iterator contains all commits (from all refs)
-		if c.checkParent {
-			if parent != nil && isParentHash(parent.Hash, c.currentCommit) {
-				return true
-			}
-			continue
-		}
-
-		return true
+	if changes.Len() == 0 {
+		return false
 	}
 
-	return false
+	if c.checkParent {
+		if parent != nil && !isParentHash(parent.Hash, c.currentCommit) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isParentHash(hash plumbing.Hash, commit *Commit) bool {
