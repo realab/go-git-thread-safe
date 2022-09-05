@@ -8,11 +8,11 @@ import (
 	"os"
 
 	billy "github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/cache"
-	"github.com/go-git/go-git/v5/plumbing/format/idxfile"
-	"github.com/go-git/go-git/v5/plumbing/storer"
-	"github.com/go-git/go-git/v5/utils/ioutil"
+	"github.com/realab/go-git-thread-safe/v5/plumbing"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/cache"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/format/idxfile"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/storer"
+	"github.com/realab/go-git-thread-safe/v5/utils/ioutil"
 )
 
 var (

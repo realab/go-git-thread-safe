@@ -3,9 +3,9 @@ package filesystem
 import (
 	"testing"
 
-	"github.com/go-git/go-git/v5/plumbing/cache"
-	"github.com/go-git/go-git/v5/plumbing/storer"
-	"github.com/go-git/go-git/v5/storage/test"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/cache"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/storer"
+	"github.com/realab/go-git-thread-safe/v5/storage/test"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"

@@ -15,7 +15,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-billy/v5/util"
 	fixtures "github.com/go-git/go-git-fixtures/v4"
-	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/realab/go-git-thread-safe/v5/plumbing"
 	. "gopkg.in/check.v1"
 )
 

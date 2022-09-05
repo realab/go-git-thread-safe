@@ -1,8 +1,8 @@
 package transactional
 
 import (
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/realab/go-git-thread-safe/v5/config"
+	"github.com/realab/go-git-thread-safe/v5/storage/memory"
 
 	. "gopkg.in/check.v1"
 )

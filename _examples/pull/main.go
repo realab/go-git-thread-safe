@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-git/go-git/v5"
-	. "github.com/go-git/go-git/v5/_examples"
+	"github.com/realab/go-git-thread-safe/v5"
+	. "github.com/realab/go-git-thread-safe/v5/_examples"
 )
 
 // Pull changes from a remote repository

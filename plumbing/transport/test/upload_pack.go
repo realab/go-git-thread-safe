@@ -10,12 +10,12 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/format/packfile"
-	"github.com/go-git/go-git/v5/plumbing/protocol/packp"
-	"github.com/go-git/go-git/v5/plumbing/protocol/packp/capability"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/realab/go-git-thread-safe/v5/plumbing"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/format/packfile"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/protocol/packp"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/protocol/packp/capability"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/transport"
+	"github.com/realab/go-git-thread-safe/v5/storage/memory"
 
 	. "gopkg.in/check.v1"
 )

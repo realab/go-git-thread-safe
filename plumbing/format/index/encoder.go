@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/go-git/go-git/v5/utils/binary"
+	"github.com/realab/go-git-thread-safe/v5/utils/binary"
 )
 
 var (

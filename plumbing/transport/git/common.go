@@ -6,10 +6,10 @@ import (
 	"io"
 	"net"
 
-	"github.com/go-git/go-git/v5/plumbing/format/pktline"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/internal/common"
-	"github.com/go-git/go-git/v5/utils/ioutil"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/format/pktline"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/transport"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/transport/internal/common"
+	"github.com/realab/go-git-thread-safe/v5/utils/ioutil"
 )
 
 // DefaultClient is the default git client.

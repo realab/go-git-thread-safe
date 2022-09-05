@@ -8,7 +8,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/transport"
 
 	sshagent "github.com/xanzy/ssh-agent"
 	"golang.org/x/crypto/ssh"
