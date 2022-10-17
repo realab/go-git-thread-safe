@@ -1,6 +1,5 @@
 // Package test implements common test suite for different transport
 // implementations.
-//
 package test
 
 import (
@@ -8,6 +7,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/realab/go-git-thread-safe/v5/plumbing"
@@ -261,5 +261,14 @@ func (s *UploadPackSuite) checkObjectNumber(c *C, r io.Reader, n int) {
 	storage := memory.NewStorage()
 	err = packfile.UpdateObjectStorage(storage, buf)
 	c.Assert(err, IsNil)
-	c.Assert(len(storage.Objects), Equals, n)
+	c.Assert(lenSyncMap(storage.Objects), Equals, n)
+}
+
+func lenSyncMap(m sync.Map) int {
+	var i int
+	m.Range(func(_, _ interface{}) bool {
+		i++
+		return true
+	})
+	return i
 }

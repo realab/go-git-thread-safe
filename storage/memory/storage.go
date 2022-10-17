@@ -3,6 +3,7 @@ package memory
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/realab/go-git-thread-safe/v5/config"
@@ -34,7 +35,7 @@ func NewStorage() *Storage {
 		ConfigStorage:    ConfigStorage{},
 		ShallowStorage:   ShallowStorage{},
 		ObjectStorage: ObjectStorage{
-			Objects: make(map[plumbing.Hash]plumbing.EncodedObject),
+			Objects: sync.Map{},
 			Commits: make(map[plumbing.Hash]plumbing.EncodedObject),
 			Trees:   make(map[plumbing.Hash]plumbing.EncodedObject),
 			Blobs:   make(map[plumbing.Hash]plumbing.EncodedObject),
@@ -83,7 +84,7 @@ func (c *IndexStorage) Index() (*index.Index, error) {
 }
 
 type ObjectStorage struct {
-	Objects map[plumbing.Hash]plumbing.EncodedObject
+	Objects sync.Map // map[plumbing.Hash]plumbing.EncodedObject
 	Commits map[plumbing.Hash]plumbing.EncodedObject
 	Trees   map[plumbing.Hash]plumbing.EncodedObject
 	Blobs   map[plumbing.Hash]plumbing.EncodedObject
@@ -96,17 +97,21 @@ func (o *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
 
 func (o *ObjectStorage) SetEncodedObject(obj plumbing.EncodedObject) (plumbing.Hash, error) {
 	h := obj.Hash()
-	o.Objects[h] = obj
+	o.Objects.Store(h, obj)
 
 	switch obj.Type() {
 	case plumbing.CommitObject:
-		o.Commits[h] = o.Objects[h]
+		val, _ := o.Objects.Load(h)
+		o.Commits[h], _ = val.(plumbing.EncodedObject)
 	case plumbing.TreeObject:
-		o.Trees[h] = o.Objects[h]
+		val, _ := o.Objects.Load(h)
+		o.Trees[h], _ = val.(plumbing.EncodedObject)
 	case plumbing.BlobObject:
-		o.Blobs[h] = o.Objects[h]
+		val, _ := o.Objects.Load(h)
+		o.Blobs[h], _ = val.(plumbing.EncodedObject)
 	case plumbing.TagObject:
-		o.Tags[h] = o.Objects[h]
+		val, _ := o.Objects.Load(h)
+		o.Tags[h], _ = val.(plumbing.EncodedObject)
 	default:
 		return h, ErrUnsupportedObjectType
 	}
@@ -115,7 +120,7 @@ func (o *ObjectStorage) SetEncodedObject(obj plumbing.EncodedObject) (plumbing.H
 }
 
 func (o *ObjectStorage) HasEncodedObject(h plumbing.Hash) (err error) {
-	if _, ok := o.Objects[h]; !ok {
+	if _, ok := o.Objects.Load(h); !ok {
 		return plumbing.ErrObjectNotFound
 	}
 	return nil
@@ -123,17 +128,22 @@ func (o *ObjectStorage) HasEncodedObject(h plumbing.Hash) (err error) {
 
 func (o *ObjectStorage) EncodedObjectSize(h plumbing.Hash) (
 	size int64, err error) {
-	obj, ok := o.Objects[h]
+	val, ok := o.Objects.Load(h)
 	if !ok {
 		return 0, plumbing.ErrObjectNotFound
 	}
+	obj := val.(plumbing.EncodedObject)
 
 	return obj.Size(), nil
 }
 
 func (o *ObjectStorage) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
-	obj, ok := o.Objects[h]
-	if !ok || (plumbing.AnyObject != t && obj.Type() != t) {
+	val, ok := o.Objects.Load(h)
+	if !ok {
+		return nil, plumbing.ErrObjectNotFound
+	}
+	obj := val.(plumbing.EncodedObject)
+	if plumbing.AnyObject != t && obj.Type() != t {
 		return nil, plumbing.ErrObjectNotFound
 	}
 
@@ -144,7 +154,7 @@ func (o *ObjectStorage) IterEncodedObjects(t plumbing.ObjectType) (storer.Encode
 	var series []plumbing.EncodedObject
 	switch t {
 	case plumbing.AnyObject:
-		series = flattenObjectMap(o.Objects)
+		series = flattenObjectSyncMap(o.Objects)
 	case plumbing.CommitObject:
 		series = flattenObjectMap(o.Commits)
 	case plumbing.TreeObject:
@@ -166,6 +176,15 @@ func flattenObjectMap(m map[plumbing.Hash]plumbing.EncodedObject) []plumbing.Enc
 	return objects
 }
 
+func flattenObjectSyncMap(m sync.Map) []plumbing.EncodedObject {
+	objects := []plumbing.EncodedObject{}
+	m.Range(func(_, v interface{}) bool {
+		objects = append(objects, v.(plumbing.EncodedObject))
+		return true
+	})
+	return objects
+}
+
 func (o *ObjectStorage) Begin() storer.Transaction {
 	return &TxObjectStorage{
 		Storage: o,
@@ -174,16 +193,20 @@ func (o *ObjectStorage) Begin() storer.Transaction {
 }
 
 func (o *ObjectStorage) ForEachObjectHash(fun func(plumbing.Hash) error) error {
-	for h := range o.Objects {
+	var innerError error
+	o.Objects.Range(func(k, _ interface{}) bool {
+		h := k.(plumbing.Hash)
 		err := fun(h)
 		if err != nil {
 			if err == storer.ErrStop {
-				return nil
+				return false
 			}
-			return err
+			innerError = err
+			return false
 		}
-	}
-	return nil
+		return true
+	})
+	return innerError
 }
 
 func (o *ObjectStorage) ObjectPacks() ([]plumbing.Hash, error) {
