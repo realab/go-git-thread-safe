@@ -36,10 +36,10 @@ func NewStorage() *Storage {
 		ShallowStorage:   ShallowStorage{},
 		ObjectStorage: ObjectStorage{
 			Objects: sync.Map{},
-			Commits: make(map[plumbing.Hash]plumbing.EncodedObject),
-			Trees:   make(map[plumbing.Hash]plumbing.EncodedObject),
-			Blobs:   make(map[plumbing.Hash]plumbing.EncodedObject),
-			Tags:    make(map[plumbing.Hash]plumbing.EncodedObject),
+			Commits: sync.Map{},
+			Trees:   sync.Map{},
+			Blobs:   sync.Map{},
+			Tags:    sync.Map{},
 		},
 		ModuleStorage: make(ModuleStorage),
 	}
@@ -85,10 +85,10 @@ func (c *IndexStorage) Index() (*index.Index, error) {
 
 type ObjectStorage struct {
 	Objects sync.Map // map[plumbing.Hash]plumbing.EncodedObject
-	Commits map[plumbing.Hash]plumbing.EncodedObject
-	Trees   map[plumbing.Hash]plumbing.EncodedObject
-	Blobs   map[plumbing.Hash]plumbing.EncodedObject
-	Tags    map[plumbing.Hash]plumbing.EncodedObject
+	Commits sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Trees   sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Blobs   sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Tags    sync.Map // map[plumbing.Hash]plumbing.EncodedObject
 }
 
 func (o *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
@@ -102,16 +102,16 @@ func (o *ObjectStorage) SetEncodedObject(obj plumbing.EncodedObject) (plumbing.H
 	switch obj.Type() {
 	case plumbing.CommitObject:
 		val, _ := o.Objects.Load(h)
-		o.Commits[h], _ = val.(plumbing.EncodedObject)
+		o.Commits.Store(h, val)
 	case plumbing.TreeObject:
 		val, _ := o.Objects.Load(h)
-		o.Trees[h], _ = val.(plumbing.EncodedObject)
+		o.Trees.Store(h, val)
 	case plumbing.BlobObject:
 		val, _ := o.Objects.Load(h)
-		o.Blobs[h], _ = val.(plumbing.EncodedObject)
+		o.Blobs.Store(h, val)
 	case plumbing.TagObject:
 		val, _ := o.Objects.Load(h)
-		o.Tags[h], _ = val.(plumbing.EncodedObject)
+		o.Tags.Store(h, val)
 	default:
 		return h, ErrUnsupportedObjectType
 	}
@@ -156,13 +156,13 @@ func (o *ObjectStorage) IterEncodedObjects(t plumbing.ObjectType) (storer.Encode
 	case plumbing.AnyObject:
 		series = flattenObjectSyncMap(o.Objects)
 	case plumbing.CommitObject:
-		series = flattenObjectMap(o.Commits)
+		series = flattenObjectSyncMap(o.Commits)
 	case plumbing.TreeObject:
-		series = flattenObjectMap(o.Trees)
+		series = flattenObjectSyncMap(o.Trees)
 	case plumbing.BlobObject:
-		series = flattenObjectMap(o.Blobs)
+		series = flattenObjectSyncMap(o.Blobs)
 	case plumbing.TagObject:
-		series = flattenObjectMap(o.Tags)
+		series = flattenObjectSyncMap(o.Tags)
 	}
 
 	return storer.NewEncodedObjectSliceIter(series), nil
