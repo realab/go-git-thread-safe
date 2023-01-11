@@ -264,7 +264,7 @@ func (s *UploadPackSuite) checkObjectNumber(c *C, r io.Reader, n int) {
 	c.Assert(lenSyncMap(storage.Objects), Equals, n)
 }
 
-func lenSyncMap(m sync.Map) int {
+func lenSyncMap(m *sync.Map) int {
 	var i int
 	m.Range(func(_, _ interface{}) bool {
 		i++

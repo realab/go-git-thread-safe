@@ -311,7 +311,8 @@ func (s *ReferencesSuite) TestObjectNotFoundError(c *C) {
 	})
 	c.Assert(err, IsNil)
 
-	delete(storer.Objects, hParent)
+	// delete(storer.Objects, hParent)
+	storer.Objects.Delete(hParent)
 
 	commit, err := r.CommitObject(h1)
 	c.Assert(err, IsNil)

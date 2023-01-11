@@ -35,11 +35,11 @@ func NewStorage() *Storage {
 		ConfigStorage:    ConfigStorage{},
 		ShallowStorage:   ShallowStorage{},
 		ObjectStorage: ObjectStorage{
-			Objects: sync.Map{},
-			Commits: sync.Map{},
-			Trees:   sync.Map{},
-			Blobs:   sync.Map{},
-			Tags:    sync.Map{},
+			Objects: &sync.Map{},
+			Commits: &sync.Map{},
+			Trees:   &sync.Map{},
+			Blobs:   &sync.Map{},
+			Tags:    &sync.Map{},
 		},
 		ModuleStorage: make(ModuleStorage),
 	}
@@ -84,11 +84,11 @@ func (c *IndexStorage) Index() (*index.Index, error) {
 }
 
 type ObjectStorage struct {
-	Objects sync.Map // map[plumbing.Hash]plumbing.EncodedObject
-	Commits sync.Map // map[plumbing.Hash]plumbing.EncodedObject
-	Trees   sync.Map // map[plumbing.Hash]plumbing.EncodedObject
-	Blobs   sync.Map // map[plumbing.Hash]plumbing.EncodedObject
-	Tags    sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Objects *sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Commits *sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Trees   *sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Blobs   *sync.Map // map[plumbing.Hash]plumbing.EncodedObject
+	Tags    *sync.Map // map[plumbing.Hash]plumbing.EncodedObject
 }
 
 func (o *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
@@ -168,15 +168,15 @@ func (o *ObjectStorage) IterEncodedObjects(t plumbing.ObjectType) (storer.Encode
 	return storer.NewEncodedObjectSliceIter(series), nil
 }
 
-func flattenObjectMap(m map[plumbing.Hash]plumbing.EncodedObject) []plumbing.EncodedObject {
-	objects := make([]plumbing.EncodedObject, 0, len(m))
-	for _, obj := range m {
-		objects = append(objects, obj)
-	}
-	return objects
-}
+// func flattenObjectMap(m map[plumbing.Hash]plumbing.EncodedObject) []plumbing.EncodedObject {
+// 	objects := make([]plumbing.EncodedObject, 0, len(m))
+// 	for _, obj := range m {
+// 		objects = append(objects, obj)
+// 	}
+// 	return objects
+// }
 
-func flattenObjectSyncMap(m sync.Map) []plumbing.EncodedObject {
+func flattenObjectSyncMap(m *sync.Map) []plumbing.EncodedObject {
 	objects := []plumbing.EncodedObject{}
 	m.Range(func(_, v interface{}) bool {
 		objects = append(objects, v.(plumbing.EncodedObject))
