@@ -425,6 +425,36 @@ type LogOptions struct {
 	Until *time.Time
 }
 
+type FastLogOptions struct {
+	// When the From option is set the log will only contain commits
+	// reachable from it. If this option is not set, HEAD will be used as
+	// the default From.
+	From plumbing.Hash
+
+	// The default traversal algorithm is Depth-first search
+	// set Order=LogOrderCommitterTime for ordering by committer time (more compatible with `git log`)
+	// set Order=LogOrderBSF for Breadth-first search
+	Order LogOrder
+
+	// Show only those commits in which the specified file was inserted/updated.
+	// It is equivalent to running `git log -- <file-name>`.
+	// this field is kept for compatility, it can be replaced with PathFilter
+	Path *string
+
+	// Pretend as if all the refs in refs/, along with HEAD, are listed on the command line as <commit>.
+	// It is equivalent to running `git log --all`.
+	// If set on true, the From option will be ignored.
+	All bool
+
+	// Show commits more recent than a specific date.
+	// It is equivalent to running `git log --since <date>` or `git log --after <date>`.
+	Since *time.Time
+
+	// Show commits older than a specific date.
+	// It is equivalent to running `git log --until <date>` or `git log --before <date>`.
+	Until *time.Time
+}
+
 var (
 	ErrMissingAuthor = errors.New("author field is required")
 )

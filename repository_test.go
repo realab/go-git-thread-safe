@@ -1755,6 +1755,28 @@ func (s *RepositorySuite) TestLogFileWithOtherParamsPass(c *C) {
 	c.Assert(iterErr, Equals, io.EOF)
 }
 
+func (s *RepositorySuite) TestFastLogFileWithOtherParamsPass(c *C) {
+	r, _ := Init(memory.NewStorage(), nil)
+	err := r.clone(context.Background(), &CloneOptions{
+		URL: s.GetBasicLocalRepositoryURL(),
+	})
+	c.Assert(err, IsNil)
+
+	fileName := "LICENSE"
+	cIter, err := r.FastLog(&FastLogOptions{
+		Order: LogOrderCommitterTime,
+		Path:  &fileName,
+		From:  plumbing.NewHash("35e85108805c84807bc66a02d91535e1e24b38b9"),
+	})
+	c.Assert(err, IsNil)
+	commitVal, iterErr := cIter.Next()
+	c.Assert(iterErr, Equals, nil)
+	c.Assert(commitVal.Hash.String(), Equals, "b029517f6300c2da0f4b651b8642506cd6aaf45d")
+
+	_, iterErr = cIter.Next()
+	c.Assert(iterErr, Equals, io.EOF)
+}
+
 type mockErrCommitIter struct{}
 
 func (m *mockErrCommitIter) Next() (*object.Commit, error) {

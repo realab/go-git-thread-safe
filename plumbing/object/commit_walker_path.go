@@ -39,6 +39,21 @@ func NewCommitFileIterFromIter(fileName string, commitIter CommitIter, checkPare
 	)
 }
 
+type fastCommitPathIter struct {
+	path          string
+	sourceIter    CommitIter
+	currentCommit *Commit
+	checkParent   bool
+}
+
+func NewFastCommitPathIterFromIter(path string, commitIter CommitIter, checkParent bool) CommitIter {
+	iterator := new(fastCommitPathIter)
+	iterator.sourceIter = commitIter
+	iterator.path = path
+	iterator.checkParent = checkParent
+	return iterator
+}
+
 func (c *commitPathIter) Next() (*Commit, error) {
 	if c.currentCommit == nil {
 		var err error
@@ -156,5 +171,121 @@ func (c *commitPathIter) ForEach(cb func(*Commit) error) error {
 }
 
 func (c *commitPathIter) Close() {
+	c.sourceIter.Close()
+}
+
+func (c *fastCommitPathIter) Next() (*Commit, error) {
+	if c.currentCommit == nil {
+		var err error
+		c.currentCommit, err = c.sourceIter.Next()
+		if err != nil {
+			return nil, err
+		}
+	}
+	commit, commitErr := c.getNextFileCommit()
+
+	// Setting current-commit to nil to prevent unwanted states when errors are raised
+	if commitErr != nil {
+		c.currentCommit = nil
+	}
+	return commit, commitErr
+}
+
+func (c *fastCommitPathIter) getNextFileCommit() (*Commit, error) {
+	for {
+		// Parent-commit can be nil if the current-commit is the initial commit
+		parentCommit, parentCommitErr := c.sourceIter.Next()
+		if parentCommitErr != nil {
+			// If the parent-commit is beyond the initial commit, keep it nil
+			if parentCommitErr != io.EOF {
+				return nil, parentCommitErr
+			}
+			parentCommit = nil
+		}
+
+		// Fetch the trees of the current and parent commits
+		currentTree, currTreeErr := c.currentCommit.Tree()
+		if currTreeErr != nil {
+			return nil, currTreeErr
+		}
+
+		var parentTree *Tree
+		if parentCommit != nil {
+			var parentTreeErr error
+			parentTree, parentTreeErr = parentCommit.Tree()
+			if parentTreeErr != nil {
+				return nil, parentTreeErr
+			}
+		}
+
+		var found bool
+		currentTree, currentSubTreeErr := currentTree.Tree(c.path)
+		if parentTree != nil {
+			parentTree, parentSubTreeErr := parentTree.Tree(c.path)
+			if currentSubTreeErr == nil && parentSubTreeErr == nil {
+				// Find diff between current and parent trees
+				changes, diffErr := DiffTree(currentTree, parentTree)
+				if diffErr != nil {
+					return nil, diffErr
+				}
+
+				found = c.hasFileChange(changes, parentCommit)
+			} else if currentSubTreeErr != nil && currentSubTreeErr.Error() == "directory not found" {
+				found = parentSubTreeErr == nil
+			} else if parentSubTreeErr != nil && parentSubTreeErr.Error() == "directory not found" {
+				found = currentSubTreeErr == nil
+			}
+		}
+
+		// Storing the current-commit in-case a change is found, and
+		// Updating the current-commit for the next-iteration
+		prevCommit := c.currentCommit
+		c.currentCommit = parentCommit
+
+		if found {
+			return prevCommit, nil
+		}
+
+		// If not matches found and if parent-commit is beyond the initial commit, then return with EOF
+		if parentCommit == nil {
+			return nil, io.EOF
+		}
+	}
+}
+
+func (c *fastCommitPathIter) hasFileChange(changes Changes, parent *Commit) bool {
+	if changes.Len() == 0 {
+		return false
+	}
+
+	if c.checkParent {
+		if parent != nil && !isParentHash(parent.Hash, c.currentCommit) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *fastCommitPathIter) ForEach(cb func(*Commit) error) error {
+	for {
+		commit, nextErr := c.Next()
+		if nextErr == io.EOF {
+			break
+		}
+		if nextErr != nil {
+			return nextErr
+		}
+		err := cb(commit)
+		if err == storer.ErrStop {
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *fastCommitPathIter) Close() {
 	c.sourceIter.Close()
 }
