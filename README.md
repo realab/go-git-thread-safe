@@ -26,6 +26,13 @@ Comparison with git
 Installation
 ------------
 
+Go 1.20 or newer is required.
+
+`memory.ReferenceStorage` now uses `sync.Map`. Construct standalone reference
+stores with `&memory.ReferenceStorage{}` and use their methods instead of map
+indexing, `range`, or `len`. `memory.NewStorage()` initializes reference storage
+automatically. `AdvRefs.AllReferences()` returns `*memory.ReferenceStorage`.
+
 The recommended way to install *go-git* is:
 
 ```go

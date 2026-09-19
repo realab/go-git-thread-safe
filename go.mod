@@ -3,10 +3,8 @@ module github.com/realab/go-git-thread-safe/v5
 require (
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7
 	github.com/acomagu/bufpipe v1.0.3
-	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/emirpasic/gods v1.12.0
-	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gliderlabs/ssh v0.2.2
 	github.com/go-git/gcfg v1.5.0
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -23,7 +21,15 @@ require (
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/text v0.3.3
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
+)
+
+require (
+	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
+	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
+	github.com/kr/pretty v0.2.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-go 1.13
+go 1.20

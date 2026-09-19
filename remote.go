@@ -914,12 +914,12 @@ func calculateRefs(
 	spec []config.RefSpec,
 	remoteRefs storer.ReferenceStorer,
 	tagMode TagMode,
-) (memory.ReferenceStorage, error) {
+) (*memory.ReferenceStorage, error) {
 	if tagMode == AllTags {
 		spec = append(spec, refspecAllTags)
 	}
 
-	refs := make(memory.ReferenceStorage)
+	refs := &memory.ReferenceStorage{}
 	for _, s := range spec {
 		if err := doCalculateRefs(s, remoteRefs, refs); err != nil {
 			return nil, err
@@ -932,7 +932,7 @@ func calculateRefs(
 func doCalculateRefs(
 	s config.RefSpec,
 	remoteRefs storer.ReferenceStorer,
-	refs memory.ReferenceStorage,
+	refs *memory.ReferenceStorage,
 ) error {
 	iter, err := remoteRefs.IterReferences()
 	if err != nil {
@@ -982,14 +982,26 @@ func doCalculateRefs(
 	return err
 }
 
-func getWants(localStorer storage.Storer, refs memory.ReferenceStorage) ([]plumbing.Hash, error) {
+func getWants(localStorer storage.Storer, refs *memory.ReferenceStorage) ([]plumbing.Hash, error) {
 	shallow := false
 	if s, _ := localStorer.Shallow(); len(s) > 0 {
 		shallow = true
 	}
 
 	wants := map[plumbing.Hash]bool{}
-	for _, ref := range refs {
+	iter, err := refs.IterReferences()
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+	for {
+		ref, err := iter.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 		hash := ref.Hash()
 		exists, err := objectExists(localStorer, ref.Hash())
 		if err != nil {
@@ -1138,7 +1150,7 @@ func buildSidebandIfSupported(l *capability.List, reader io.Reader, p sideband.P
 
 func (r *Remote) updateLocalReferenceStorage(
 	specs []config.RefSpec,
-	fetchedRefs, remoteRefs memory.ReferenceStorage,
+	fetchedRefs, remoteRefs *memory.ReferenceStorage,
 	tagMode TagMode,
 	force bool,
 ) (updated bool, err error) {
@@ -1150,7 +1162,19 @@ func (r *Remote) updateLocalReferenceStorage(
 			isWildcard = false
 		}
 
-		for _, ref := range fetchedRefs {
+		iter, err := fetchedRefs.IterReferences()
+		if err != nil {
+			return updated, err
+		}
+		defer iter.Close()
+		for {
+			ref, err := iter.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return updated, err
+			}
 			if !spec.Match(ref.Name()) && !spec.IsExactSHA1() {
 				continue
 			}
@@ -1212,13 +1236,25 @@ func (r *Remote) updateLocalReferenceStorage(
 	return
 }
 
-func (r *Remote) buildFetchedTags(refs memory.ReferenceStorage) (updated bool, err error) {
-	for _, ref := range refs {
+func (r *Remote) buildFetchedTags(refs *memory.ReferenceStorage) (updated bool, err error) {
+	iter, err := refs.IterReferences()
+	if err != nil {
+		return false, err
+	}
+	defer iter.Close()
+	for {
+		ref, err := iter.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return updated, err
+		}
 		if !ref.Name().IsTag() {
 			continue
 		}
 
-		_, err := r.s.EncodedObject(plumbing.AnyObject, ref.Hash())
+		_, err = r.s.EncodedObject(plumbing.AnyObject, ref.Hash())
 		if err == plumbing.ErrObjectNotFound {
 			continue
 		}

@@ -24,14 +24,14 @@ type Storage struct {
 	ObjectStorage
 	ShallowStorage
 	IndexStorage
-	ReferenceStorage
+	*ReferenceStorage
 	ModuleStorage
 }
 
 // NewStorage returns a new Storage base on memory
 func NewStorage() *Storage {
 	return &Storage{
-		ReferenceStorage: make(ReferenceStorage),
+		ReferenceStorage: &ReferenceStorage{},
 		ConfigStorage:    ConfigStorage{},
 		ShallowStorage:   ShallowStorage{},
 		ObjectStorage: ObjectStorage{
@@ -262,59 +262,87 @@ func (tx *TxObjectStorage) Rollback() error {
 	return nil
 }
 
-type ReferenceStorage map[plumbing.ReferenceName]*plumbing.Reference
+// ReferenceStorage stores references safely for concurrent access. Its zero
+// value is ready to use. A ReferenceStorage must not be copied after first use.
+type ReferenceStorage struct {
+	references sync.Map // map[plumbing.ReferenceName]*plumbing.Reference
+}
 
-func (r ReferenceStorage) SetReference(ref *plumbing.Reference) error {
+func (r *ReferenceStorage) SetReference(ref *plumbing.Reference) error {
 	if ref != nil {
-		r[ref.Name()] = ref
+		r.references.Store(ref.Name(), ref)
 	}
 
 	return nil
 }
 
-func (r ReferenceStorage) CheckAndSetReference(ref, old *plumbing.Reference) error {
+func (r *ReferenceStorage) CheckAndSetReference(ref, old *plumbing.Reference) error {
 	if ref == nil {
 		return nil
 	}
 
-	if old != nil {
-		tmp := r[ref.Name()]
-		if tmp != nil && tmp.Hash() != old.Hash() {
+	if old == nil {
+		return r.SetReference(ref)
+	}
+
+	for {
+		current, loaded := r.references.Load(ref.Name())
+		if !loaded {
+			// Preserve the existing behavior of creating missing references,
+			// but do not overwrite a reference inserted by another writer.
+			if _, loaded := r.references.LoadOrStore(ref.Name(), ref); !loaded {
+				return nil
+			}
+			continue
+		}
+
+		if current.(*plumbing.Reference).Hash() != old.Hash() {
 			return storage.ErrReferenceHasChanged
 		}
+		if r.references.CompareAndSwap(ref.Name(), current, ref) {
+			return nil
+		}
 	}
-	r[ref.Name()] = ref
-	return nil
 }
 
-func (r ReferenceStorage) Reference(n plumbing.ReferenceName) (*plumbing.Reference, error) {
-	ref, ok := r[n]
+func (r *ReferenceStorage) Reference(n plumbing.ReferenceName) (*plumbing.Reference, error) {
+	ref, ok := r.references.Load(n)
 	if !ok {
 		return nil, plumbing.ErrReferenceNotFound
 	}
 
-	return ref, nil
+	return ref.(*plumbing.Reference), nil
 }
 
-func (r ReferenceStorage) IterReferences() (storer.ReferenceIter, error) {
+// IterReferences collects references into an independent iterator. Concurrent
+// updates may be reflected in the collection; it is not a consistent snapshot.
+func (r *ReferenceStorage) IterReferences() (storer.ReferenceIter, error) {
 	var refs []*plumbing.Reference
-	for _, ref := range r {
-		refs = append(refs, ref)
-	}
+	r.references.Range(func(_, value interface{}) bool {
+		refs = append(refs, value.(*plumbing.Reference))
+		return true
+	})
 
 	return storer.NewReferenceSliceIter(refs), nil
 }
 
-func (r ReferenceStorage) CountLooseRefs() (int, error) {
-	return len(r), nil
+// CountLooseRefs counts references observed during iteration. Concurrent updates
+// may change the count while the iteration is in progress.
+func (r *ReferenceStorage) CountLooseRefs() (int, error) {
+	var count int
+	r.references.Range(func(_, _ interface{}) bool {
+		count++
+		return true
+	})
+	return count, nil
 }
 
-func (r ReferenceStorage) PackRefs() error {
+func (r *ReferenceStorage) PackRefs() error {
 	return nil
 }
 
-func (r ReferenceStorage) RemoveReference(n plumbing.ReferenceName) error {
-	delete(r, n)
+func (r *ReferenceStorage) RemoveReference(n plumbing.ReferenceName) error {
+	r.references.Delete(n)
 	return nil
 }
 
