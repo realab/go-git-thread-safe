@@ -240,7 +240,7 @@ func (s *RemoteSuite) TestFetchWithDepth(c *C) {
 		plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "6ecf0ef2c2dffb796033e5a02219af86ec6584e5"),
 	})
 
-	c.Assert(r.s.(*memory.Storage).Objects, HasLen, 18)
+	assertObjectCount(c, r.s.(*memory.Storage), plumbing.AnyObject, 18)
 }
 
 func (s *RemoteSuite) TestFetchWithDepthChange(c *C) {
@@ -256,7 +256,7 @@ func (s *RemoteSuite) TestFetchWithDepthChange(c *C) {
 	}, []*plumbing.Reference{
 		plumbing.NewReferenceFromStrings("refs/heads/master", "6ecf0ef2c2dffb796033e5a02219af86ec6584e5"),
 	})
-	c.Assert(r.s.(*memory.Storage).Commits, HasLen, 1)
+	assertObjectCount(c, r.s.(*memory.Storage), plumbing.CommitObject, 1)
 
 	s.testFetch(c, r, &FetchOptions{
 		Depth: 3,
@@ -266,7 +266,7 @@ func (s *RemoteSuite) TestFetchWithDepthChange(c *C) {
 	}, []*plumbing.Reference{
 		plumbing.NewReferenceFromStrings("refs/heads/master", "6ecf0ef2c2dffb796033e5a02219af86ec6584e5"),
 	})
-	c.Assert(r.s.(*memory.Storage).Commits, HasLen, 3)
+	assertObjectCount(c, r.s.(*memory.Storage), plumbing.CommitObject, 3)
 }
 
 func (s *RemoteSuite) testFetch(c *C, r *Remote, o *FetchOptions, expected []*plumbing.Reference) {
@@ -301,7 +301,7 @@ func (s *RemoteSuite) TestFetchWithProgress(c *C) {
 	})
 
 	c.Assert(err, IsNil)
-	c.Assert(sto.Objects, HasLen, 31)
+	assertObjectCount(c, sto, plumbing.AnyObject, 31)
 
 	c.Assert(buf.Len(), Not(Equals), 0)
 }

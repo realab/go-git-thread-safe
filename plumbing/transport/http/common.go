@@ -67,6 +67,11 @@ func advertisedReferences(ctx context.Context, s *session, serviceName string) (
 		return nil, err
 	}
 
+	// Empty repositories may advertise capabilities without any references.
+	if serviceName == transport.UploadPackServiceName && ar.IsEmpty() {
+		return nil, transport.ErrEmptyRemoteRepository
+	}
+
 	transport.FilterUnsupportedCapabilities(ar.Capabilities)
 	s.advRefs = ar
 

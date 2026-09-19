@@ -143,6 +143,12 @@ func (s *DeltaSelectorSuite) createTestObjects() {
 	}
 }
 
+func (s *DeltaSelectorSuite) storedObject(c *C, name string) plumbing.EncodedObject {
+	obj, err := s.store.EncodedObject(plumbing.AnyObject, s.hashes[name])
+	c.Assert(err, IsNil)
+	return obj
+}
+
 func (s *DeltaSelectorSuite) TestObjectsToPack(c *C) {
 	// Different type
 	hashes := []plumbing.Hash{s.hashes["base"], s.hashes["treeType"]}
@@ -150,33 +156,33 @@ func (s *DeltaSelectorSuite) TestObjectsToPack(c *C) {
 	otp, err := s.ds.ObjectsToPack(hashes, deltaWindowSize)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 2)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["base"]])
-	c.Assert(otp[1].Object, Equals, s.store.Objects[s.hashes["treeType"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "base"))
+	c.Assert(otp[1].Object, Equals, s.storedObject(c, "treeType"))
 
 	// Size radically different
 	hashes = []plumbing.Hash{s.hashes["bigBase"], s.hashes["target"]}
 	otp, err = s.ds.ObjectsToPack(hashes, deltaWindowSize)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 2)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["bigBase"]])
-	c.Assert(otp[1].Object, Equals, s.store.Objects[s.hashes["target"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "bigBase"))
+	c.Assert(otp[1].Object, Equals, s.storedObject(c, "target"))
 
 	// Delta Size Limit with no best delta yet
 	hashes = []plumbing.Hash{s.hashes["smallBase"], s.hashes["smallTarget"]}
 	otp, err = s.ds.ObjectsToPack(hashes, deltaWindowSize)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 2)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["smallBase"]])
-	c.Assert(otp[1].Object, Equals, s.store.Objects[s.hashes["smallTarget"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "smallBase"))
+	c.Assert(otp[1].Object, Equals, s.storedObject(c, "smallTarget"))
 
 	// It will create the delta
 	hashes = []plumbing.Hash{s.hashes["base"], s.hashes["target"]}
 	otp, err = s.ds.ObjectsToPack(hashes, deltaWindowSize)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 2)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["target"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "target"))
 	c.Assert(otp[0].IsDelta(), Equals, false)
-	c.Assert(otp[1].Original, Equals, s.store.Objects[s.hashes["base"]])
+	c.Assert(otp[1].Original, Equals, s.storedObject(c, "base"))
 	c.Assert(otp[1].IsDelta(), Equals, true)
 	c.Assert(otp[1].Depth, Equals, 1)
 
@@ -189,12 +195,12 @@ func (s *DeltaSelectorSuite) TestObjectsToPack(c *C) {
 	otp, err = s.ds.ObjectsToPack(hashes, deltaWindowSize)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 3)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["o1"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "o1"))
 	c.Assert(otp[0].IsDelta(), Equals, false)
-	c.Assert(otp[1].Original, Equals, s.store.Objects[s.hashes["o2"]])
+	c.Assert(otp[1].Original, Equals, s.storedObject(c, "o2"))
 	c.Assert(otp[1].IsDelta(), Equals, true)
 	c.Assert(otp[1].Depth, Equals, 1)
-	c.Assert(otp[2].Original, Equals, s.store.Objects[s.hashes["o3"]])
+	c.Assert(otp[2].Original, Equals, s.storedObject(c, "o3"))
 	c.Assert(otp[2].IsDelta(), Equals, true)
 	c.Assert(otp[2].Depth, Equals, 2)
 
@@ -223,9 +229,9 @@ func (s *DeltaSelectorSuite) TestObjectsToPack(c *C) {
 	otp, err = s.ds.ObjectsToPack(hashes, 0)
 	c.Assert(err, IsNil)
 	c.Assert(len(otp), Equals, 2)
-	c.Assert(otp[0].Object, Equals, s.store.Objects[s.hashes["base"]])
+	c.Assert(otp[0].Object, Equals, s.storedObject(c, "base"))
 	c.Assert(otp[0].IsDelta(), Equals, false)
-	c.Assert(otp[1].Original, Equals, s.store.Objects[s.hashes["target"]])
+	c.Assert(otp[1].Original, Equals, s.storedObject(c, "target"))
 	c.Assert(otp[1].IsDelta(), Equals, false)
 	c.Assert(otp[1].Depth, Equals, 0)
 }

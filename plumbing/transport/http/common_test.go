@@ -1,6 +1,8 @@
 package http
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cgi"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -15,6 +18,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/realab/go-git-thread-safe/v5/plumbing/protocol/packp"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/protocol/packp/capability"
 	"github.com/realab/go-git-thread-safe/v5/plumbing/transport"
 
 	fixtures "github.com/go-git/go-git-fixtures/v4"
@@ -29,6 +34,33 @@ type ClientSuite struct {
 }
 
 var _ = Suite(&ClientSuite{})
+
+func (s *ClientSuite) TestAdvertisedReferencesCapabilitiesOnly(c *C) {
+	var body bytes.Buffer
+	advertisement := packp.NewAdvRefs()
+	c.Assert(advertisement.Capabilities.Set(capability.OFSDelta), IsNil)
+	c.Assert(advertisement.Encode(&body), IsNil)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(body.Bytes())
+	}))
+	defer server.Close()
+
+	ep, err := transport.NewEndpoint(server.URL)
+	c.Assert(err, IsNil)
+	for _, service := range []string{transport.UploadPackServiceName, transport.ReceivePackServiceName} {
+		sess, err := newSession(server.Client(), ep, nil)
+		c.Assert(err, IsNil)
+		refs, err := advertisedReferences(context.Background(), sess, service)
+		if service == transport.UploadPackServiceName {
+			c.Assert(err, Equals, transport.ErrEmptyRemoteRepository)
+			c.Assert(refs, IsNil)
+		} else {
+			c.Assert(err, IsNil)
+			c.Assert(refs.IsEmpty(), Equals, true)
+			c.Assert(refs.Capabilities.Supports(capability.OFSDelta), Equals, true)
+		}
+	}
+}
 
 func (s *ClientSuite) SetUpSuite(c *C) {
 	var err error

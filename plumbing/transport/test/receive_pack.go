@@ -1,6 +1,5 @@
 // Package test implements common test suite for different transport
 // implementations.
-//
 package test
 
 import (
@@ -205,13 +204,13 @@ func (s *ReceivePackSuite) TestSendPackOnNonEmptyWithReportStatusWithError(c *C)
 	req.Capabilities.Set(capability.ReportStatus)
 
 	report, err := s.receivePackNoCheck(c, endpoint, req, fixture, full)
-	//XXX: Recent git versions return "failed to update ref", while older
-	//     (>=1.9) return "failed to lock".
-	c.Assert(err, ErrorMatches, ".*(failed to update ref|failed to lock).*")
+	// Git versions use different messages for creation of an existing ref.
+	const rejectedRef = "(failed to update ref|failed to lock|reference already exists)"
+	c.Assert(err, ErrorMatches, ".*"+rejectedRef+".*")
 	c.Assert(report.UnpackStatus, Equals, "ok")
 	c.Assert(len(report.CommandStatuses), Equals, 1)
 	c.Assert(report.CommandStatuses[0].ReferenceName, Equals, plumbing.ReferenceName("refs/heads/master"))
-	c.Assert(report.CommandStatuses[0].Status, Matches, "(failed to update ref|failed to lock)")
+	c.Assert(report.CommandStatuses[0].Status, Matches, rejectedRef)
 	s.checkRemoteHead(c, endpoint, plumbing.NewHash(fixture.Head))
 }
 

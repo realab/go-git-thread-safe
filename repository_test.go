@@ -1777,6 +1777,38 @@ func (s *RepositorySuite) TestFastLogFileWithOtherParamsPass(c *C) {
 	c.Assert(iterErr, Equals, io.EOF)
 }
 
+func (s *RepositorySuite) TestFastLogPaths(c *C) {
+	r := s.NewRepository(fixtures.Basic().One())
+	for _, path := range []string{"LICENSE", "CHANGELOG", "vendor", "vendor/foo.go", "missing", "missing/file"} {
+		c.Logf("path: %s", path)
+		regular, err := r.Log(&LogOptions{
+			Order: LogOrderCommitterTime,
+			PathFilter: func(name string) bool {
+				return name == path || strings.HasPrefix(name, path+"/")
+			},
+		})
+		c.Assert(err, IsNil)
+		var expected []plumbing.Hash
+		err = regular.ForEach(func(commit *object.Commit) error {
+			expected = append(expected, commit.Hash)
+			return nil
+		})
+		c.Assert(err, IsNil)
+		regular.Close()
+
+		fast, err := r.FastLog(&FastLogOptions{Order: LogOrderCommitterTime, Path: &path})
+		c.Assert(err, IsNil)
+		var actual []plumbing.Hash
+		err = fast.ForEach(func(commit *object.Commit) error {
+			actual = append(actual, commit.Hash)
+			return nil
+		})
+		c.Assert(err, IsNil)
+		fast.Close()
+		c.Assert(actual, DeepEquals, expected)
+	}
+}
+
 type mockErrCommitIter struct{}
 
 func (m *mockErrCommitIter) Next() (*object.Commit, error) {

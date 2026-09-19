@@ -188,7 +188,7 @@ func (s *WorktreeSuite) TestPullInSingleBranch(c *C) {
 	c.Assert(err, NotNil)
 
 	storage := r.Storer.(*memory.Storage)
-	c.Assert(storage.Objects, HasLen, 28)
+	assertObjectCount(c, storage, plumbing.AnyObject, 28)
 }
 
 func (s *WorktreeSuite) TestPullProgress(c *C) {
@@ -250,7 +250,7 @@ func (s *RepositorySuite) TestPullAdd(c *C) {
 	c.Assert(err, IsNil)
 
 	storage := r.Storer.(*memory.Storage)
-	c.Assert(storage.Objects, HasLen, 28)
+	assertObjectCount(c, storage, plumbing.AnyObject, 28)
 
 	branch, err := r.Reference("refs/heads/master", false)
 	c.Assert(err, IsNil)
@@ -269,7 +269,7 @@ func (s *RepositorySuite) TestPullAdd(c *C) {
 	c.Assert(err, IsNil)
 
 	// the commit command has introduced a new commit, tree and blob
-	c.Assert(storage.Objects, HasLen, 31)
+	assertObjectCount(c, storage, plumbing.AnyObject, 31)
 
 	branch, err = r.Reference("refs/heads/master", false)
 	c.Assert(err, IsNil)

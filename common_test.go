@@ -7,6 +7,7 @@ import (
 	"github.com/realab/go-git-thread-safe/v5/plumbing"
 	"github.com/realab/go-git-thread-safe/v5/plumbing/cache"
 	"github.com/realab/go-git-thread-safe/v5/plumbing/format/packfile"
+	"github.com/realab/go-git-thread-safe/v5/plumbing/storer"
 	"github.com/realab/go-git-thread-safe/v5/storage/filesystem"
 	"github.com/realab/go-git-thread-safe/v5/storage/memory"
 
@@ -19,6 +20,18 @@ import (
 )
 
 func Test(t *testing.T) { TestingT(t) }
+
+func assertObjectCount(c *C, storage storer.EncodedObjectStorer, typ plumbing.ObjectType, expected int) {
+	iter, err := storage.IterEncodedObjects(typ)
+	c.Assert(err, IsNil)
+	var count int
+	err = iter.ForEach(func(plumbing.EncodedObject) error {
+		count++
+		return nil
+	})
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, expected)
+}
 
 type BaseSuite struct {
 	fixtures.Suite

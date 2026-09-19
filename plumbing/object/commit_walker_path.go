@@ -218,23 +218,23 @@ func (c *fastCommitPathIter) getNextFileCommit() (*Commit, error) {
 			}
 		}
 
-		var found bool
-		currentTree, currentSubTreeErr := currentTree.Tree(c.path)
-		if parentTree != nil {
-			parentTree, parentSubTreeErr := parentTree.Tree(c.path)
-			if currentSubTreeErr == nil && parentSubTreeErr == nil {
-				// Find diff between current and parent trees
-				changes, diffErr := DiffTree(currentTree, parentTree)
-				if diffErr != nil {
-					return nil, diffErr
-				}
+		currentEntry, err := c.pathEntry(currentTree)
+		if err != nil {
+			return nil, err
+		}
+		parentEntry, err := c.pathEntry(parentTree)
+		if err != nil {
+			return nil, err
+		}
 
-				found = c.hasFileChange(changes, parentCommit)
-			} else if currentSubTreeErr != nil && currentSubTreeErr.Error() == "directory not found" {
-				found = parentSubTreeErr == nil
-			} else if parentSubTreeErr != nil && parentSubTreeErr.Error() == "directory not found" {
-				found = currentSubTreeErr == nil
-			}
+		// A directory's hash includes its descendants, so comparing entries
+		// handles both files and directories without diffing entire trees.
+		found := currentEntry != nil || parentEntry != nil
+		if currentEntry != nil && parentEntry != nil {
+			found = *currentEntry != *parentEntry
+		}
+		if c.checkParent && parentCommit != nil && !isParentHash(parentCommit.Hash, c.currentCommit) {
+			found = false
 		}
 
 		// Storing the current-commit in-case a change is found, and
@@ -253,18 +253,15 @@ func (c *fastCommitPathIter) getNextFileCommit() (*Commit, error) {
 	}
 }
 
-func (c *fastCommitPathIter) hasFileChange(changes Changes, parent *Commit) bool {
-	if changes.Len() == 0 {
-		return false
+func (c *fastCommitPathIter) pathEntry(tree *Tree) (*TreeEntry, error) {
+	if tree == nil {
+		return nil, nil
 	}
-
-	if c.checkParent {
-		if parent != nil && !isParentHash(parent.Hash, c.currentCommit) {
-			return false
-		}
+	entry, err := tree.FindEntry(c.path)
+	if err == ErrEntryNotFound || err == ErrDirectoryNotFound {
+		return nil, nil
 	}
-
-	return true
+	return entry, err
 }
 
 func (c *fastCommitPathIter) ForEach(cb func(*Commit) error) error {
